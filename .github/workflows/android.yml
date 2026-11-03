@@ -1,0 +1,47 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Kodni yuklash
+      uses: actions/checkout@v4
+
+    - name: Node.js sozlash
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Java sozlash
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: Kutubxonalarni o'rnatish
+      run: npm install
+
+    - name: Saytni tayyorlash
+      run: npm run build
+
+    - name: Capacitor sozlash va Android papkani ochish
+      run: |
+        npx cap init "Yoz Chat" "com.yozchat.app" --web-dir=dist
+        npx cap add android
+        npx cap sync
+
+    - name: APK faylni yig'ish (Build)
+      run: |
+        cd android
+        ./gradlew assembleDebug
+
+    - name: Tayyor APK yuklash uchun chiqarish
+      uses: actions/upload-artifact@v4
+      with:
+        name: Yoz-Chat-APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk
