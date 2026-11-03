@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111b21">
+  <title>Yoz — chat demo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b141a;
+      color: #e9edef;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --panel: #111b21;
+      --muted: #8696a0;
+      --accent: #00a884;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .app { display: grid; grid-template-columns: 350px minmax(0, 1fr); height: 100vh; max-width: 1500px; margin: auto; background: var(--panel); }
+    .sidebar { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid #26343d; }
+    .brand-row, .chat-heading { display: flex; align-items: center; gap: 12px; min-height: 70px; padding: 14px 20px; }
+    .brand-row { justify-content: space-between; border-bottom: 1px solid #26343d; }
+    .brand { display: flex; align-items: center; gap: 11px; font-size: 19px; font-weight: 700; letter-spacing: .2px; }
+    .brand-mark { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 50%; background: var(--accent); color: #052d27; font-size: 18px; }
+    .current-user { max-width: 150px; overflow: hidden; padding: 6px 0 6px 6px; border: 0; background: transparent; color: #b7c5cc; cursor: pointer; font-size: 13px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+    .search-wrap { padding: 14px 16px 10px; }
+    .search-wrap input, .message-input { width: 100%; border: 1px solid transparent; outline: none; background: #202c33; color: #e9edef; }
+    .search-wrap input { padding: 11px 14px; border-radius: 9px; }
+    input:focus { border-color: #3a555c; }
+    .section-label { padding: 8px 20px; color: var(--muted); font-size: 12px; font-weight: 650; letter-spacing: .5px; text-transform: uppercase; }
+    .people, .conversations { overflow-y: auto; }
+    .people:empty, .conversations:empty { display: none; }
+    .person, .conversation { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 18px; border: 0; border-radius: 0; background: transparent; color: inherit; text-align: left; }
+    .person:hover, .conversation:hover, .conversation.active { background: #202c33; }
+    .avatar { display: grid; flex: 0 0 44px; width: 44px; height: 44px; place-items: center; border-radius: 50%; background: #26434a; color: #c9f3ea; font-size: 17px; font-weight: 650; }
+    .person-name, .conversation-name { overflow: hidden; font-size: 14px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .person-hint, .last-message { overflow: hidden; margin-top: 4px; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .list-copy { min-width: 0; flex: 1; }
+    .empty-list { padding: 16px 20px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .status { min-height: 24px; padding: 3px 18px 8px; color: var(--muted); font-size: 12px; }
+    .status.error { color: #ff8a80; }
+    .demo-notice { margin: 0 16px 10px; padding: 10px 12px; border: 1px solid #66572c; border-radius: 8px; background: #302a19; color: #e6d7a7; font-size: 12px; line-height: 1.45; }
+    .main { display: flex; min-width: 0; flex-direction: column; background-color: #0b141a; }
+    .chat-heading { border-bottom: 1px solid #26343d; background: var(--panel); }
+    .chat-heading .avatar { width: 42px; height: 42px; flex-basis: 42px; }
+    .chat-subtitle { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .messages { display: flex; flex: 1; flex-direction: column; gap: 8px; overflow-y: auto; padding: 22px clamp(16px, 5vw, 72px); background-image: radial-gradient(#16242b 1px, transparent 1px); background-size: 19px 19px; }
+    .message { max-width: min(76%, 620px); align-self: flex-start; padding: 9px 12px 7px; border-radius: 9px; background: #202c33; box-shadow: 0 1px 1px #0003; overflow-wrap: anywhere; white-space: pre-wrap; }
+    .message.mine { align-self: flex-end; background: #005c4b; }
+    .message-time { margin-top: 5px; color: #b4c7c1; font-size: 10px; text-align: right; }
+    .composer { display: flex; align-items: center; gap: 10px; padding: 13px clamp(12px, 4vw, 50px); background: var(--panel); }
+    .message-input { min-width: 0; padding: 12px 16px; border-radius: 24px; }
+    .send-button, .primary-button { border: 0; background: var(--accent); color: #062d27; font-weight: 700; }
+    .send-button { display: grid; flex: 0 0 44px; width: 44px; height: 44px; place-items: center; border-radius: 50%; }
+    .send-button:disabled { cursor: not-allowed; opacity: .5; }
+    .welcome { display: grid; flex: 1; place-items: center; padding: 30px; text-align: center; }
+    .welcome-card { max-width: 380px; color: var(--muted); line-height: 1.6; }
+    .welcome-card .brand-mark { width: 64px; height: 64px; margin: 0 auto 18px; font-size: 28px; }
+    .welcome-card h1 { margin: 0 0 8px; color: #dce5e8; font-size: 21px; }
+    .overlay { position: fixed; z-index: 2; inset: 0; display: grid; place-items: center; padding: 20px; background: #061014eF; }
+    .login-card { width: min(100%, 390px); padding: 28px; border: 1px solid #26343d; border-radius: 16px; background: #111b21; box-shadow: 0 20px 70px #0008; }
+    .login-card h1 { margin: 0 0 8px; font-size: 23px; }
+    .login-card p { margin: 0 0 20px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .login-card label { display: block; margin-bottom: 7px; color: #c6d2d7; font-size: 13px; }
+    .login-card input { width: 100%; padding: 12px; border: 1px solid #33434b; border-radius: 8px; outline: none; background: #202c33; color: inherit; }
+    .primary-button { width: 100%; margin-top: 14px; padding: 12px; border-radius: 8px; }
+    .login-error { min-height: 20px; margin-top: 10px; color: #ff8a80; font-size: 12px; }
+    .hidden { display: none !important; }
+
+    @media (max-width: 700px) {
+      .app { grid-template-columns: 1fr; }
+      .app.chat-open .sidebar { display: none; }
+      .app:not(.chat-open) .main { display: none; }
+      .brand-row, .chat-heading { min-height: 62px; }
+      .messages { padding: 16px 12px; }
+      .message { max-width: 88%; }
+      .back-button { display: grid !important; }
+    }
+    .back-button { display: none; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: #d7e1e5; font-size: 22px; }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar">
+      <header class="brand-row">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">Y</span><span>Yoz</span></div>
+        <button class="current-user" id="switch-user" type="button" title="Boshqa username bilan kirish"></button>
+      </header>
+      <div class="search-wrap"><input id="search" type="search" placeholder="Username bo‘yicha qidirish" autocomplete="off" aria-label="Username bo‘yicha qidirish"></div>
+      <div class="demo-notice">Demo rejimi: xabarlar faqat shu brauzerda saqlanadi, boshqa odamlarning qurilmalariga bormaydi.</div>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+      <div class="section-label hidden" id="results-label">Qidiruv natijalari</div>
+      <div class="people" id="people"></div>
+      <div class="section-label">Suhbatlar</div>
+      <div class="conversations" id="conversations"></div>
+      <div class="empty-list" id="empty-conversations">Hozircha suhbat yo‘q. Username qidirib, birinchi xabaringizni yuboring.</div>
+    </aside>
+    <main class="main">
+      <section class="welcome" id="welcome">
+        <div class="welcome-card"><div class="brand-mark" aria-hidden="true">Y</div><h1>Yoz’ga xush kelibsiz</h1><p>Chap tomondan shu brauzerda yaratilgan username’ni qidiring va demo suhbatni boshlang.</p></div>
+      </section>
+      <section class="hidden" id="chat" style="display:flex; flex:1; min-height:0; flex-direction:column">
+        <header class="chat-heading">
+          <button class="back-button" id="back" type="button" aria-label="Suhbatlar ro‘yxatiga qaytish">‹</button>
+          <span class="avatar" id="chat-avatar"></span>
+          <div class="list-copy"><div class="person-name" id="chat-name"></div><div class="chat-subtitle">Yoz’da suhbat</div></div>
+        </header>
+        <div class="messages" id="messages" aria-live="polite"></div>
+        <form class="composer" id="message-form">
+          <input class="message-input" id="message-input" maxlength="4000" placeholder="Xabar yozing" autocomplete="off" aria-label="Xabar yozing">
+          <button class="send-button" id="send" type="submit" aria-label="Xabarni yuborish">➤</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <div class="overlay" id="login-overlay">
+    <form class="login-card" id="login-form">
+      <h1>Yoz’ga xush kelibsiz</h1>
+      <p>Davom etish uchun username tanlang. Bu GitHub Pages demo: username’lar va xabarlar faqat shu brauzerda saqlanadi.</p>
+      <label for="username">Username</label>
+      <input id="username" name="username" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]{3,20}" placeholder="masalan, ali_2000" autocomplete="username" required>
+      <button class="primary-button" type="submit">Boshlash</button>
+      <div class="login-error" id="login-error" role="alert"></div>
+    </form>
+  </div>
+
+  <script>
+    (() => {
+      const USERS_KEY = "yoz-demo-users";
+      const MESSAGES_KEY = "yoz-demo-messages";
+      const ACTIVE_USER_KEY = "yoz-demo-active-user";
+      const usernamePattern = /^[A-Za-z0-9_]{3,20}$/;
+      const app = document.getElementById("app");
+      const searchInput = document.getElementById("search");
+      const peopleList = document.getElementById("people");
+      const conversationsList = document.getElementById("conversations");
+      const emptyConversations = document.getElementById("empty-conversations");
+      const resultsLabel = document.getElementById("results-label");
+      const statusNode = document.getElementById("status");
+      const loginOverlay = document.getElementById("login-overlay");
+      const loginForm = document.getElementById("login-form");
+      const loginError = document.getElementById("login-error");
+      const messageForm = document.getElementById("message-form");
+      const messageInput = document.getElementById("message-input");
+      const messagesNode = document.getElementById("messages");
+      const chatNode = document.getElementById("chat");
+      const welcomeNode = document.getElementById("welcome");
+      let username = "";
+      let activePeer = "";
+      let searchTimer;
+
+      function showStatus(message, isError = false) {
+        statusNode.textContent = message;
+        statusNode.classList.toggle("error", isError);
+      }
+
+      function readStorage(key) {
+        return JSON.parse(localStorage.getItem(key) || "[]");
+      }
+
+      function getUsers() {
+        return readStorage(USERS_KEY);
+      }
+
+      function getMessages() {
+        return readStorage(MESSAGES_KEY);
+      }
+
+      function normalized(name) {
+        return name.toLowerCase();
+      }
+
+      function userNameFor(name) {
+        return getUsers().find(user => normalized(user) === normalized(name)) || name;
+      }
+
+      function initials(name) {
+        return name.slice(0, 1).toUpperCase();
+      }
+
+      function addAvatar(parent, name) {
+        parent.textContent = initials(name);
+      }
+
+      function formatTime(value) {
+        return new Intl.DateTimeFormat("uz-UZ", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+      }
+
+      function clearChildren(node) {
+        node.replaceChildren();
+      }
+
+      function openChat(peer) {
+        activePeer = userNameFor(peer);
+        document.getElementById("chat-name").textContent = activePeer;
+        addAvatar(document.getElementById("chat-avatar"), activePeer);
+        clearChildren(messagesNode);
+        welcomeNode.classList.add("hidden");
+        chatNode.classList.remove("hidden");
+        app.classList.add("chat-open");
+        renderMessages();
+        renderConversations();
+        messageInput.focus();
+      }
+
+      function conversationItems() {
+        const latest = new Map();
+        for (const message of getMessages()) {
+          if (message.from !== normalized(username) && message.to !== normalized(username)) continue;
+          const peer = message.from === normalized(username) ? message.to : message.from;
+          const existing = latest.get(peer);
+          if (!existing || message.createdAt > existing.createdAt) latest.set(peer, message);
+        }
+        return [...latest.entries()]
+          .map(([peer, message]) => ({
+            username: userNameFor(peer),
+            lastMessage: message.text,
+            lastMessageFrom: message.from === normalized(username) ? username : userNameFor(message.from),
+            updatedAt: message.createdAt
+          }))
+          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      }
+
+      function renderConversations(items = conversationItems()) {
+        clearChildren(conversationsList);
+        for (const item of items) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `conversation${item.username === activePeer ? " active" : ""}`;
+          button.addEventListener("click", () => openChat(item.username));
+          const avatar = document.createElement("span");
+          avatar.className = "avatar";
+          addAvatar(avatar, item.username);
+          const copy = document.createElement("span");
+          copy.className = "list-copy";
+          const name = document.createElement("span");
+          name.className = "conversation-name";
+          name.textContent = item.username;
+          const last = document.createElement("span");
+          last.className = "last-message";
+          last.textContent = `${item.lastMessageFrom === username ? "Siz: " : ""}${item.lastMessage}`;
+          copy.append(name, last);
+          button.append(avatar, copy);
+          conversationsList.append(button);
+        }
+        emptyConversations.classList.toggle("hidden", items.length > 0);
+      }
+
+      function renderMessages() {
+        const pair = [normalized(username), normalized(activePeer)].sort();
+        const items = getMessages().filter(message =>
+          [message.from, message.to].sort().every((name, index) => name === pair[index])
+        );
+        clearChildren(messagesNode);
+        for (const item of items) {
+          const bubble = document.createElement("article");
+          bubble.className = `message${item.from === normalized(username) ? " mine" : ""}`;
+          const text = document.createElement("div");
+          text.textContent = item.text;
+          const time = document.createElement("div");
+          time.className = "message-time";
+          time.textContent = formatTime(item.createdAt);
+          bubble.append(text, time);
+          messagesNode.append(bubble);
+        }
+        messagesNode.scrollTop = messagesNode.scrollHeight;
+      }
+
+      function searchUsers(query) {
+        if (query.length < 2) {
+          clearChildren(peopleList);
+          resultsLabel.classList.add("hidden");
+          return;
+        }
+        const users = getUsers().filter(person =>
+          normalized(person) !== normalized(username) && normalized(person).includes(normalized(query))
+        );
+        clearChildren(peopleList);
+        resultsLabel.classList.remove("hidden");
+        for (const person of users) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "person";
+          button.addEventListener("click", () => {
+            searchInput.value = "";
+            clearChildren(peopleList);
+            resultsLabel.classList.add("hidden");
+            openChat(person);
+          });
+          const avatar = document.createElement("span");
+          avatar.className = "avatar";
+          addAvatar(avatar, person);
+          const copy = document.createElement("span");
+          copy.className = "list-copy";
+          const name = document.createElement("span");
+          name.className = "person-name";
+          name.textContent = person;
+          const hint = document.createElement("span");
+          hint.className = "person-hint";
+          hint.textContent = "Suhbatni boshlash uchun bosing";
+          copy.append(name, hint);
+          button.append(avatar, copy);
+          peopleList.append(button);
+        }
+        if (!users.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty-list";
+          empty.textContent = "Mos username topilmadi.";
+          peopleList.append(empty);
+        }
+      }
+
+      function startSession(name) {
+        const cleanName = name.trim();
+        if (!usernamePattern.test(cleanName)) {
+          loginError.textContent = "Username 3–20 belgidan iborat bo‘lsin: harflar, raqamlar yoki _.";
+          return;
+        }
+        const users = getUsers();
+        const existingName = users.find(user => normalized(user) === normalized(cleanName));
+        username = existingName || cleanName;
+        if (!existingName) {
+          users.push(username);
+          localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        }
+        localStorage.setItem(ACTIVE_USER_KEY, username);
+        document.getElementById("switch-user").textContent = `@${username} · almashtirish`;
+        loginOverlay.classList.add("hidden");
+        showStatus("Faqat shu brauzerdagi demo");
+        renderConversations();
+      }
+
+      loginForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        const name = document.getElementById("username").value.trim();
+        loginError.textContent = "";
+        startSession(name);
+      });
+
+      searchInput.addEventListener("input", () => {
+        window.clearTimeout(searchTimer);
+        const query = searchInput.value.trim();
+        searchTimer = window.setTimeout(() => {
+          searchUsers(query);
+        }, 250);
+      });
+
+      messageForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        const text = messageInput.value.trim();
+        if (!text || !activePeer) return;
+        const messages = getMessages();
+        messages.push({
+          from: normalized(username),
+          to: normalized(activePeer),
+          text,
+          createdAt: new Date().toISOString()
+        });
+        localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
+        messageInput.value = "";
+        renderMessages();
+        renderConversations();
+        showStatus("Demo xabari shu brauzerda saqlandi");
+        messageInput.focus();
+      });
+
+      function switchUser() {
+        username = "";
+        activePeer = "";
+        localStorage.removeItem(ACTIVE_USER_KEY);
+        app.classList.remove("chat-open");
+        chatNode.classList.add("hidden");
+        welcomeNode.classList.remove("hidden");
+        loginError.textContent = "";
+        loginForm.reset();
+        loginOverlay.classList.remove("hidden");
+      }
+
+      document.getElementById("switch-user").addEventListener("click", switchUser);
+      document.getElementById("back").addEventListener("click", () => app.classList.remove("chat-open"));
+
+      const cachedName = localStorage.getItem(ACTIVE_USER_KEY);
+      if (cachedName) startSession(cachedName);
+    })();
+  </script>
+</body>
+</html>
